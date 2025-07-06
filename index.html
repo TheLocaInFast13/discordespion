@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Discord Secret Spy</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #2c2f33; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;}
+  #login { display: flex; flex-direction: column; gap: 10px; }
+  input { padding: 10px; border-radius: 5px; border: none; }
+  button { padding: 10px; background: #7289da; border: none; border-radius: 5px; color: white; cursor: pointer; }
+  #loading { display: none; margin-top: 20px; }
+  #content { display: none; width: 90vw; max-width: 600px; }
+  #friends, #servers, #chat { margin-top: 20px; }
+  #friends button, #servers button { margin: 5px; padding: 5px 10px; background: #99aab5; border: none; border-radius: 5px; cursor: pointer; color: #2c2f33; }
+  #chatArea { background: #23272a; padding: 10px; height: 300px; overflow-y: scroll; border-radius: 5px; margin-bottom: 10px; }
+  #messageInput { width: calc(100% - 80px); padding: 10px; border-radius: 5px; border: none; }
+  #sendBtn { width: 60px; background: #43b581; color: white; border: none; border-radius: 5px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h2>Entre ton token Discord</h2>
+  <input id="tokenInput" type="password" placeholder="Token utilisateur Discord" />
+  <button id="loginBtn">Entrer</button>
+</div>
+
+<div id="loading">Chargement... ⏳</div>
+
+<div id="content">
+  <div id="friends"><h3>Amis</h3></div>
+  <div id="servers"><h3>Serveurs</h3></div>
+  <div id="chat">
+    <h3>Chat avec <span id="chatUser"></span></h3>
+    <div id="chatArea"></div>
+    <input id="messageInput" placeholder="Écrire un message..." />
+    <button id="sendBtn">Envoyer</button>
+  </div>
+</div>
+
+<script>
+  const loginBtn = document.getElementById('loginBtn');
+  const tokenInput = document.getElementById('tokenInput');
+  const loginDiv = document.getElementById('login');
+  const loadingDiv = document.getElementById('loading');
+  const contentDiv = document.getElementById('content');
+  const friendsDiv = document.getElementById('friends');
+  const serversDiv = document.getElementById('servers');
+  const chatDiv = document.getElementById('chat');
+  const chatUserSpan = document.getElementById('chatUser');
+  const chatArea = document.getElementById('chatArea');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  let token = '';
+  let friendsList = [];
+  let chatWith = null;
+  let messages = {};
+
+  loginBtn.onclick = async () => {
+    token = tokenInput.value.trim();
+    if (!token) {
+      alert('Donne-moi un token, mon grand !');
+      return;
+    }
+
+    loginDiv.style.display = 'none';
+    loadingDiv.style.display = 'block';
+
+    try {
+      // Récupérer amis Discord avec API (attention, utiliser le token utilisateur, ça peut être risqué)
+      const res = await fetch('https://discord.com/api/v9/users/@me/relationships', {
+        headers: { Authorization: token }
+      });
+      if (!res.ok) throw new Error('Token invalide ou erreur API');
+      friendsList = await res.json();
+
+      // Récupérer serveurs
+      const res2 = await fetch('https://discord.com/api/v9/users/@me/guilds', {
+        headers: { Authorization: token }
+      });
+      if (!res2.ok) throw new Error('Erreur récupération serveurs');
+      const serversList = await res2.json();
+
+      // Afficher amis et serveurs
+      friendsDiv.innerHTML = '<h3>Amis</h3>';
+      friendsList.forEach(f => {
+        const btn = document.createElement('button');
+        btn.textContent = f.user.username + '#' + f.user.discriminator;
+        btn.onclick = () => openChat(f.user.id, btn.textContent);
+        friendsDiv.appendChild(btn);
+      });
+
+      serversDiv.innerHTML = '<h3>Serveurs</h3>';
+      serversList.forEach(s => {
+        const btn = document.createElement('button');
+        btn.textContent = s.name;
+        serversDiv.appendChild(btn);
+      });
+
+      loadingDiv.style.display = 'none';
+      contentDiv.style.display = 'block';
+
+    } catch (e) {
+      alert('Erreur: ' + e.message);
+      loadingDiv.style.display = 'none';
+      loginDiv.style.display = 'flex';
+    }
+  };
+
+  function openChat(userId, username) {
+    chatWith = userId;
+    chatUserSpan.textContent = username;
+    chatArea.innerHTML = messages[userId]?.map(m => `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('') || '';
+  }
+
+  sendBtn.onclick = () => {
+    if (!chatWith) {
+      alert('Choisis un ami pour discuter.');
+      return;
+    }
+    const text = messageInput.value.trim();
+    if (!text) return;
+    if (!messages[chatWith]) messages[chatWith] = [];
+    messages[chatWith].push({ from: 'Moi', text });
+    chatArea.innerHTML += `<div><strong>Moi:</strong> ${text}</div>`;
+    messageInput.value = '';
+    chatArea.scrollTop = chatArea.scrollHeight;
+  };
+</script>
+
+</body>
+</html>
