@@ -2,128 +2,258 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<title>Discord Secret Spy</title>
+<title>Discord Spy - Mamie mode</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #2c2f33; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0;}
-  #login { display: flex; flex-direction: column; gap: 10px; }
-  input { padding: 10px; border-radius: 5px; border: none; }
-  button { padding: 10px; background: #7289da; border: none; border-radius: 5px; color: white; cursor: pointer; }
-  #loading { display: none; margin-top: 20px; }
-  #content { display: none; width: 90vw; max-width: 600px; }
-  #friends, #servers, #chat { margin-top: 20px; }
-  #friends button, #servers button { margin: 5px; padding: 5px 10px; background: #99aab5; border: none; border-radius: 5px; cursor: pointer; color: #2c2f33; }
-  #chatArea { background: #23272a; padding: 10px; height: 300px; overflow-y: scroll; border-radius: 5px; margin-bottom: 10px; }
-  #messageInput { width: calc(100% - 80px); padding: 10px; border-radius: 5px; border: none; }
-  #sendBtn { width: 60px; background: #43b581; color: white; border: none; border-radius: 5px; cursor: pointer; }
+  body { font-family: Arial, sans-serif; background: #2c2f33; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+  #login, #menu, #friendsList, #serversList, #chatSection, #loading { width: 90vw; max-width: 600px; text-align: center; }
+  button { margin: 10px 5px; padding: 10px 20px; background: #7289da; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 16px; }
+  select { width: 100%; padding: 10px; margin-top: 15px; border-radius: 5px; border: none; font-size: 16px; }
+  #chatArea { background: #23272a; height: 300px; overflow-y: scroll; padding: 10px; margin-top: 10px; border-radius: 5px; text-align: left; }
+  #messageInput { width: calc(100% - 80px); padding: 10px; border-radius: 5px; border: none; font-size: 16px; }
+  #sendBtn { width: 70px; background: #43b581; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-left: 5px; }
+  .returnBtn { background: #99aab5; margin-top: 20px; }
 </style>
 </head>
 <body>
 
+<!-- Demande token -->
 <div id="login">
   <h2>Entre ton token Discord</h2>
   <input id="tokenInput" type="password" placeholder="Token utilisateur Discord" />
+  <br/>
   <button id="loginBtn">Entrer</button>
 </div>
 
-<div id="loading">Chargement... ⏳</div>
+<!-- Chargement -->
+<div id="loading" style="display:none;">
+  <h3>Chargement... ⏳<br><small id="loadingTime"></small></h3>
+</div>
 
-<div id="content">
-  <div id="friends"><h3>Amis</h3></div>
-  <div id="servers"><h3>Serveurs</h3></div>
-  <div id="chat">
-    <h3>Chat avec <span id="chatUser"></span></h3>
-    <div id="chatArea"></div>
+<!-- Menu principal -->
+<div id="menu" style="display:none;">
+  <h2>Bienvenue, choisis une option</h2>
+  <button id="btnFriends">Liste Amis Actuels</button>
+  <button id="btnServers">Liste Serveurs Actuels</button>
+  <button id="btnChat">Chat</button>
+</div>
+
+<!-- Liste amis -->
+<div id="friendsList" style="display:none;">
+  <h2>Liste Amis Actuels</h2>
+  <div id="friendsContainer"></div>
+  <button class="returnBtn" id="returnFromFriends">Retour</button>
+</div>
+
+<!-- Liste serveurs -->
+<div id="serversList" style="display:none;">
+  <h2>Liste Serveurs Actuels</h2>
+  <div id="serversContainer"></div>
+  <button class="returnBtn" id="returnFromServers">Retour</button>
+</div>
+
+<!-- Chat -->
+<div id="chatSection" style="display:none; flex-direction: column;">
+  <h2>Chat - Choisis un ami</h2>
+  <select id="friendSelect">
+    <option value="">-- Choisis un ami --</option>
+  </select>
+  <div id="chatLoading" style="display:none; margin-top:10px;">Chargement des messages... ⏳ Temps estimé : 2 secondes</div>
+  <div id="chatArea"></div>
+  <div style="margin-top: 10px;">
     <input id="messageInput" placeholder="Écrire un message..." />
     <button id="sendBtn">Envoyer</button>
   </div>
+  <button class="returnBtn" id="returnFromChat">Retour</button>
 </div>
 
 <script>
-  const loginBtn = document.getElementById('loginBtn');
-  const tokenInput = document.getElementById('tokenInput');
   const loginDiv = document.getElementById('login');
   const loadingDiv = document.getElementById('loading');
-  const contentDiv = document.getElementById('content');
-  const friendsDiv = document.getElementById('friends');
-  const serversDiv = document.getElementById('servers');
-  const chatDiv = document.getElementById('chat');
-  const chatUserSpan = document.getElementById('chatUser');
+  const loadingTime = document.getElementById('loadingTime');
+  const menuDiv = document.getElementById('menu');
+  const friendsListDiv = document.getElementById('friendsList');
+  const serversListDiv = document.getElementById('serversList');
+  const chatSectionDiv = document.getElementById('chatSection');
+
+  const tokenInput = document.getElementById('tokenInput');
+  const loginBtn = document.getElementById('loginBtn');
+
+  const btnFriends = document.getElementById('btnFriends');
+  const btnServers = document.getElementById('btnServers');
+  const btnChat = document.getElementById('btnChat');
+
+  const friendsContainer = document.getElementById('friendsContainer');
+  const serversContainer = document.getElementById('serversContainer');
+
+  const returnFromFriends = document.getElementById('returnFromFriends');
+  const returnFromServers = document.getElementById('returnFromServers');
+  const returnFromChat = document.getElementById('returnFromChat');
+
+  const friendSelect = document.getElementById('friendSelect');
+  const chatLoading = document.getElementById('chatLoading');
   const chatArea = document.getElementById('chatArea');
   const messageInput = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
 
   let token = '';
   let friendsList = [];
-  let chatWith = null;
-  let messages = {};
+  let serversList = [];
+  let messages = {}; // stocke les conversations : id_ami => [ {from, text, timestamp} ]
+  let currentChatFriendId = null;
 
+  // Fonction affichage menu principal
+  function showMenu() {
+    menuDiv.style.display = 'block';
+    friendsListDiv.style.display = 'none';
+    serversListDiv.style.display = 'none';
+    chatSectionDiv.style.display = 'none';
+    loadingDiv.style.display = 'none';
+    loginDiv.style.display = 'none';
+  }
+
+  // Retour au menu principal
+  returnFromFriends.onclick = showMenu;
+  returnFromServers.onclick = showMenu;
+  returnFromChat.onclick = showMenu;
+
+  // Login
   loginBtn.onclick = async () => {
     token = tokenInput.value.trim();
     if (!token) {
-      alert('Donne-moi un token, mon grand !');
+      alert('Donne-moi un token, mon trésor !');
       return;
     }
-
     loginDiv.style.display = 'none';
     loadingDiv.style.display = 'block';
+    loadingTime.textContent = '';
 
     try {
-      // Récupérer amis Discord avec API (attention, utiliser le token utilisateur, ça peut être risqué)
-      const res = await fetch('https://discord.com/api/v9/users/@me/relationships', {
+      // Récupérer amis actuels (relationships de type "friend" seulement)
+      const resFriends = await fetch('https://discord.com/api/v9/users/@me/relationships', {
         headers: { Authorization: token }
       });
-      if (!res.ok) throw new Error('Token invalide ou erreur API');
-      friendsList = await res.json();
+      if (!resFriends.ok) throw new Error('Token invalide ou erreur API');
+      const rawFriends = await resFriends.json();
 
-      // Récupérer serveurs
-      const res2 = await fetch('https://discord.com/api/v9/users/@me/guilds', {
+      // On filtre uniquement les amis actuels (type === 1)
+      friendsList = rawFriends.filter(f => f.type === 1);
+
+      // Récupérer serveurs actuels
+      const resServers = await fetch('https://discord.com/api/v9/users/@me/guilds', {
         headers: { Authorization: token }
       });
-      if (!res2.ok) throw new Error('Erreur récupération serveurs');
-      const serversList = await res2.json();
-
-      // Afficher amis et serveurs
-      friendsDiv.innerHTML = '<h3>Amis</h3>';
-      friendsList.forEach(f => {
-        const btn = document.createElement('button');
-        btn.textContent = f.user.username + '#' + f.user.discriminator;
-        btn.onclick = () => openChat(f.user.id, btn.textContent);
-        friendsDiv.appendChild(btn);
-      });
-
-      serversDiv.innerHTML = '<h3>Serveurs</h3>';
-      serversList.forEach(s => {
-        const btn = document.createElement('button');
-        btn.textContent = s.name;
-        serversDiv.appendChild(btn);
-      });
+      if (!resServers.ok) throw new Error('Erreur récupération serveurs');
+      serversList = await resServers.json();
 
       loadingDiv.style.display = 'none';
-      contentDiv.style.display = 'block';
+      showMenu();
 
     } catch (e) {
-      alert('Erreur: ' + e.message);
+      alert('Erreur : ' + e.message);
       loadingDiv.style.display = 'none';
-      loginDiv.style.display = 'flex';
+      loginDiv.style.display = 'block';
     }
   };
 
-  function openChat(userId, username) {
-    chatWith = userId;
-    chatUserSpan.textContent = username;
-    chatArea.innerHTML = messages[userId]?.map(m => `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('') || '';
-  }
+  // Bouton Liste Amis
+  btnFriends.onclick = () => {
+    menuDiv.style.display = 'none';
+    friendsListDiv.style.display = 'block';
 
+    // Affiche liste amis
+    friendsContainer.innerHTML = '';
+    if (friendsList.length === 0) {
+      friendsContainer.textContent = 'Tu n\'as pas d\'amis actuellement.';
+      return;
+    }
+    friendsList.forEach(f => {
+      const div = document.createElement('div');
+      div.textContent = f.user.username + '#' + f.user.discriminator;
+      friendsContainer.appendChild(div);
+    });
+  };
+
+  // Bouton Liste Serveurs
+  btnServers.onclick = () => {
+    menuDiv.style.display = 'none';
+    serversListDiv.style.display = 'block';
+
+    // Affiche liste serveurs
+    serversContainer.innerHTML = '';
+    if (serversList.length === 0) {
+      serversContainer.textContent = 'Tu n\'es dans aucun serveur actuellement.';
+      return;
+    }
+    serversList.forEach(s => {
+      const div = document.createElement('div');
+      div.textContent = s.name;
+      serversContainer.appendChild(div);
+    });
+  };
+
+  // Bouton Chat
+  btnChat.onclick = () => {
+    menuDiv.style.display = 'none';
+    chatSectionDiv.style.display = 'flex';
+    chatArea.innerHTML = '';
+    messageInput.value = '';
+    currentChatFriendId = null;
+
+    // Remplit la liste déroulante amis
+    friendSelect.innerHTML = '<option value="">-- Choisis un ami --</option>';
+    friendsList.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f.user.id;
+      option.textContent = f.user.username + '#' + f.user.discriminator;
+      friendSelect.appendChild(option);
+    });
+  };
+
+  // Quand on sélectionne un ami dans le chat
+  friendSelect.onchange = async () => {
+    const friendId = friendSelect.value;
+    if (!friendId) {
+      chatArea.innerHTML = '';
+      return;
+    }
+    currentChatFriendId = friendId;
+    chatArea.innerHTML = '';
+    chatLoading.style.display = 'block';
+
+    // Simule un temps de chargement (ex: 2 secondes)
+    await new Promise(r => setTimeout(r, 2000));
+    chatLoading.style.display = 'none';
+
+    // Récupérer messages - Pour exemple, on simule car API Discord ne donne pas historique messages privés directement
+    // Tu devras connecter un vrai bot avec accès ou utiliser une autre méthode pour vrai historique
+    // Ici on simule une conversation avec 5 messages
+    if (!messages[friendId]) {
+      messages[friendId] = [
+        {from: friendSelect.options[friendSelect.selectedIndex].text, text: 'Salut ! Comment ça va ?', timestamp: Date.now() - 600000},
+        {from: 'Moi', text: 'Ça va bien, merci mamie.', timestamp: Date.now() - 590000},
+        {from: friendSelect.options[friendSelect.selectedIndex].text, text: 'Tu fais quoi aujourd\'hui ?', timestamp: Date.now() - 580000},
+        {from: 'Moi', text: 'Je travaille sur un projet.', timestamp: Date.now() - 570000},
+        {from: friendSelect.options[friendSelect.selectedIndex].text, text: 'Super, continue comme ça !', timestamp: Date.now() - 560000},
+      ];
+    }
+
+    // Affiche messages
+    chatArea.innerHTML = messages[friendId].map(m =>
+      `<div><strong>${m.from} :</strong> ${m.text}</div>`).join('');
+    chatArea.scrollTop = chatArea.scrollHeight;
+  };
+
+  // Envoyer message dans le chat
   sendBtn.onclick = () => {
-    if (!chatWith) {
-      alert('Choisis un ami pour discuter.');
+    if (!currentChatFriendId) {
+      alert('Choisis un ami pour discuter, mon trésor.');
       return;
     }
     const text = messageInput.value.trim();
     if (!text) return;
-    if (!messages[chatWith]) messages[chatWith] = [];
-    messages[chatWith].push({ from: 'Moi', text });
-    chatArea.innerHTML += `<div><strong>Moi:</strong> ${text}</div>`;
+    if (!messages[currentChatFriendId]) messages[currentChatFriendId] = [];
+    messages[currentChatFriendId].push({from: 'Moi', text, timestamp: Date.now()});
+    chatArea.innerHTML += `<div><strong>Moi :</strong> ${text}</div>`;
     messageInput.value = '';
     chatArea.scrollTop = chatArea.scrollHeight;
   };
